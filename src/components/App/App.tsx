@@ -1,13 +1,8 @@
 import css from "./App.module.css";
 
 import { useState, useEffect } from "react";
-import { fetchNotes, deleteNote } from "../../services/noteService";
-import {
-  useQuery,
-  keepPreviousData,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { fetchNotes } from "../../services/noteService";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useDebouncedCallback } from "use-debounce";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -27,33 +22,22 @@ function App() {
   const { data, isLoading, isError, isSuccess } = useQuery({
     queryKey: ["notes", searchQuery, page],
     queryFn: () => fetchNotes(searchQuery, page),
-    // enabled: searchQuery !== "",
     placeholderData: keepPreviousData,
   });
 
   useEffect(() => {
     if (isSuccess && data && data.notes.length === 0) {
-      toast.error("No movies found for your request.");
+      toast.error("No notes found for your request.");
     }
   }, [isSuccess, data]);
 
   const totalPages = data?.totalPages ?? 0;
-  const queryClient = useQueryClient();
-
-  const mutationDelete = useMutation({
-    mutationFn: (noteId: string) => deleteNote(noteId),
-    onSuccess: () => {
-      toast.success("Note deleted!");
-      queryClient.invalidateQueries({ queryKey: ["notes"] });
-    },
-  });
-
-  const handleDeleteNote = (noteId: string) => {
-    mutationDelete.mutate(noteId);
-  };
 
   const updateSearchQuery = useDebouncedCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value),
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPage(1);
+      setSearchQuery(e.target.value);
+    },
     300
   );
 
@@ -76,15 +60,10 @@ function App() {
           Create note +
         </button>
       </header>
-      {data && data.notes.length > 0 && (
-        <NoteList notes={data.notes} onDelete={handleDeleteNote} />
-      )}
-      {(isLoading || mutationDelete.isPending) && <Loader />}
+      {data && data.notes.length > 0 && <NoteList notes={data.notes} />}
+      {isLoading && <Loader />}
       {isError && (
         <ErrorMessage>{"There was an error, please try again..."}</ErrorMessage>
-      )}
-      {mutationDelete.isError && (
-        <ErrorMessage>{"An error occurred"}</ErrorMessage>
       )}
       {isModalOpen && (
         <Modal onClose={closeModal}>
